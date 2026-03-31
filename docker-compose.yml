@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:18.3
+    container_name: postgresql
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: fighteasy
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_volume:/var/lib/postgresql
+
+volumes:
+  postgresql_volume:
