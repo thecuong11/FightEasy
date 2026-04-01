@@ -11,3 +11,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+app:
+  jwt:
+    secret: MySuperSecretKey1234567890123456gkdfkgjfkdjgkdfjgdfkgfdkjgkfdjkgjkfdjgkdfjgk
+
+server:
+  port: 8080
