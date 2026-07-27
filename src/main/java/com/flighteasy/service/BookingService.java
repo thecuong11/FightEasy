@@ -7,6 +7,7 @@ import com.flighteasy.dto.PassengerRequest;
 import com.flighteasy.entity.*;
 import com.flighteasy.enums.BookingStatus;
 import com.flighteasy.event.BookingCancelledEvent;
+import com.flighteasy.event.BookingRefundRequestedEvent;
 import com.flighteasy.event.FlightCancelledEvent;
 import com.flighteasy.exception.custom.*;
 import com.flighteasy.repository.*;
@@ -40,6 +41,7 @@ public class BookingService {
     private final ApplicationEventPublisher eventPublisher;
 
     private static final BigDecimal SERVICE_FEE_PER_PERSON= BigDecimal.valueOf(27500);
+    private final PaymentRepository paymentRepository;
 
     @Transactional
     public BookingResponse createBooking(CreateBookingRequest request, Long userId) {
@@ -181,24 +183,36 @@ public class BookingService {
         booking.setRefundAmount(refundAmount);
         bookingRepository.save(booking);
 
-        eventPublisher.publishEvent(new BookingCancelledEvent(booking));
-
         releaseSeatsForBooking(booking);
+
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            eventPublisher.publishEvent(new BookingRefundRequestedEvent(booking.getId(), refundAmount));
+        }
 
         return new CancelBookingResponse(pnrCode, refundAmount, LocalDateTime.now());
     }
 
     private BigDecimal calculateRefund(Booking booking) {
-        LocalDateTime departureTime = booking.getSegments().stream().findFirst().orElseThrow(() -> new NotFoundException("Booking không có segment"))
-                .getFlightClass().getFlight().getDepartureTime();
+        FlightClass flightClass = booking.getSegments().stream().findFirst()
+                .orElseThrow(() -> new NotFoundException("Booking Không có segment"))
+                .getFlightClass();
 
-        long hoursUntilDeparture = Duration.between(LocalDateTime.now(), departureTime).toHours();
-
-        if (hoursUntilDeparture >= 24) {
-            return booking.getTotalPrice().multiply(BigDecimal.valueOf(0.70));
+        if (Boolean.FALSE.equals(flightClass.getIsRefundable())) {
+            return BigDecimal.ZERO;
         }
 
-        return BigDecimal.ZERO;
+        LocalDateTime departureTime = flightClass.getFlight().getDepartureTime();
+        long hoursUntilDeparture = Duration.between(LocalDateTime.now(), departureTime).toHours();
+
+        if (hoursUntilDeparture < 24) {
+            return BigDecimal.ZERO;
+        }
+
+        int feePercent = flightClass.getRefundFeePercent() != null ? flightClass.getRefundFeePercent() : 0;
+        BigDecimal refundRate = BigDecimal.ONE.subtract(
+                BigDecimal.valueOf(feePercent).divide(BigDecimal.valueOf(100)));
+
+        return booking.getTotalPrice().multiply(refundRate);
     }
 
     private void releaseSeatsForBooking(Booking booking) {
@@ -326,6 +340,7 @@ public class BookingService {
             bookingRepository.save(booking);
 
             releaseSeatsForBooking(booking);
+            eventPublisher.publishEvent(new BookingRefundRequestedEvent(booking.getId(), booking.getTotalPrice()));
         }
 
         log.info("Flight {} cancelled: auto-cancelled {} confirmed bookings", flight.getFlightNumber(), affected.size());

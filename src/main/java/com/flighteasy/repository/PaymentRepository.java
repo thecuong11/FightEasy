@@ -17,4 +17,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findLatestPaymentByBookingId(@Param("bookingId") Long bookingId);
 
     List<Payment> findByStatusAndCreatedAtBefore(PaymentStatus status, LocalDateTime date);
+
+    Optional<Payment> findByBookingIdAndStatus(Long bookingId, PaymentStatus status);
 }

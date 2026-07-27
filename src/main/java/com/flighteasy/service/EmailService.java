@@ -1,5 +1,7 @@
 package com.flighteasy.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flighteasy.entity.Airport;
 import com.flighteasy.entity.Booking;
 import com.flighteasy.entity.EmailLog;
@@ -8,6 +10,7 @@ import com.flighteasy.repository.EmailLogRepository;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -20,18 +23,28 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
     private final SpringTemplateEngine templateEngine;
     private final EmailLogRepository emailLogRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
+
+    public EmailService (JavaMailSender mailSender,
+                         @Qualifier("emailTemplateEngine") SpringTemplateEngine templateEngine,
+                         EmailLogRepository emailLogRepository, ObjectMapper objectMapper) {
+        this.mailSender = mailSender;
+        this.templateEngine = templateEngine;
+        this.emailLogRepository = emailLogRepository;
+        this.objectMapper = objectMapper;
+    }
 
     @Async("emailTaskExecutor")
     public void sendBookingConfirmation(Booking booking) {
@@ -127,6 +140,14 @@ public class EmailService {
     }
 
     public void sendEmail(String to, String subject, String templateName, Context context, String referenceId) {
+        String contextJson;
+        try {
+            contextJson = objectMapper.writeValueAsString(context.getVariableNames().stream()
+                    .collect(Collectors.toMap(name -> name, context::getVariable)));
+        } catch (Exception e) {
+            contextJson = "{}";
+        }
+
         EmailLog emailLog = EmailLog.builder()
                 .recipient(to)
                 .subject(subject)
@@ -134,6 +155,7 @@ public class EmailService {
                 .referenceId(referenceId)
                 .status("PENDING")
                 .attempts(0)
+                .contextJson(contextJson)
                 .build();
         emailLog = emailLogRepository.save(emailLog);
 
@@ -142,6 +164,14 @@ public class EmailService {
 
     public void retrySend(EmailLog emailLog) {
         Context context = new Context();
+        try {
+            Map<String, Object> variables = objectMapper.readValue(
+                    emailLog.getContextJson() != null ? emailLog.getContextJson() : "{}",
+                    new TypeReference<Map<String, Object>>() {});
+            variables.forEach(context::setVariable);
+        } catch (Exception e) {
+            log.error("Failed to restore context for email {}: {}", emailLog.getId(), e.getMessage());
+        }
         doSend(emailLog, context, emailLog.getTemplateName());
     }
 

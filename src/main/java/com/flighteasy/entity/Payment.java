@@ -64,4 +64,7 @@ public class Payment {
     private LocalDateTime createdAt;
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Column(name = "refund_status")
+    private String refundStatus;
 }

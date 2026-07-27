@@ -37,6 +37,9 @@ public class EmailLog {
     private LocalDateTime nextRetryAt;
     private LocalDateTime sentAt;
 
+    @Column(columnDefinition = "text")
+    private String contextJson;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

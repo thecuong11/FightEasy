@@ -27,6 +27,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -245,5 +246,50 @@ public class VNPayService {
 
         paymentRepository.save(payment);
         log.info("Reconciled payment {} -> SUCCESS (qua querydr, IPN gốc bị miss", payment.getVnpTxnRef());
+    }
+
+    public boolean refundTransaction(Payment payment, BigDecimal refundAmount, String user) {
+        try {
+            String vnpRequestId = UUID.randomUUID().toString().substring(0,8);
+            String vnpCreateDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+            String vnpTransactionType = "02";
+
+            Map<String, String> params = new HashMap<>();
+            params.put("vnp_RequestId", vnpRequestId);
+            params.put("vnp_Version", "2.1.0");
+            params.put("vnp_Command", "refund");
+            params.put("vnp_TmnCode", tmnCode);
+            params.put("vnp_TransactionType", vnpTransactionType);
+            params.put("vnp_TxnRef", payment.getVnpTxnRef());
+            params.put("vnp_Amount", String.valueOf(refundAmount.multiply(BigDecimal.valueOf(100)).longValue()));
+            params.put("vnp_TransactionNo", payment.getVnpTransactionNo());
+            params.put("vnp_TransactionDate", payment.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+            params.put("vnp_CreateBy", user);
+            params.put("vnp_CreateDate", vnpCreateDate);
+            params.put("vnp_IpAddr", "127.0.0.1");
+
+            String hashData = String.join("|",
+                    vnpRequestId, params.get("vnp_Version"), params.get("vnp_Command"), tmnCode,
+                    vnpTransactionType, payment.getVnpTxnRef(), params.get("vnp_Amount"),
+                    payment.getVnpTransactionNo(), params.get("vnp_TransactionDate"), user, vnpCreateDate, "127.0.0.1");
+            params.put("vnp_SecureHash", hmacSha512(hashSecret, hashData));
+
+            Map<String, Object> response = vnpayRestTemplate.postForObject(apiUrl, params, Map.class);
+
+            String responseCode = String.valueOf(response.get("vnp_ResponseCode"));
+            if ("00".equals(responseCode)) {
+                payment.setRefundAmount(refundAmount);
+                payment.setRefundTransId(String.valueOf(response.get("vnp_TransactionNo")));
+                payment.setRefundedAt(LocalDateTime.now());
+                paymentRepository.save(payment);
+                return true;
+            }
+
+            log.error("VNPay refund failed for txnRef={}, response={}", payment.getVnpTxnRef(), responseCode);
+            return false;
+        } catch (Exception e) {
+            log.error("VNPay refund error for txnRef={}: {}", payment.getVnpTxnRef(), e.getMessage());
+            return false;
+        }
     }
 }

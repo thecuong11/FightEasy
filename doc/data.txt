@@ -82,6 +82,8 @@ CREATE TABLE shedlock (
 ALTER TABLE refresh_tokens RENAME COLUMN token TO token_hash;
 ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(64);
 
+ALTER TABLE payments ADD COLUMN refund_status VARCHAR(20);
+
 Thiếu Database Design thực tế, MapStruct
 còn Flyway migration và created_by qua @EntityListeners là phần bạn ghi vào roadmap để học thêm nhưng chưa code —
 và Window Function (đúng nghĩa OVER(PARTITION BY...)) cũng chưa xuất hiện, hiện đang dùng GROUP BY thường.

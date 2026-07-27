@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body style="font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; margin:0">
+<div style="max-width:600px; margin:0 auto; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.1)">
+
+    <div style="background:#374151; padding:24px; text-align:center">
+        <h1 style="color:white; margin:0; font-size:24px">❌ FlightEasy</h1>
+        <p style="color:#d1d5db; margin:8px 0 0">Xác nhận hủy vé</p>
+    </div>
+
+    <div style="padding:24px; text-align:center; background:#f9fafb; border-bottom:1px solid #f3f4f6">
+        <p style="margin:0; color:#6b7280; font-size:14px">Mã đặt chỗ</p>
+        <h2 style="font-size:32px; letter-spacing:6px; color:#374151; margin:8px 0" th:text="${pnrCode}">AB3X9K</h2>
+    </div>
+
+    <div style="padding:24px">
+        <table style="width:100%; border-collapse:collapse">
+            <tr style="border-bottom:1px solid #f3f4f6">
+                <td style="padding:10px 0; color:#6b7280; width:45%">Lý do hủy</td>
+                <td style="padding:10px 0; font-weight:bold" th:text="${cancelReason} ?: 'Khách hàng yêu cầu hủy'">Khách hàng yêu cầu hủy</td>
+            </tr>
+            <tr>
+                <td style="padding:10px 0; color:#6b7280">Số tiền hoàn</td>
+                <td style="padding:10px 0; font-weight:bold; color:#059669" th:text="${refundAmount}">700,000 ₫</td>
+            </tr>
+        </table>
+    </div>
+
+    <div style="padding:0 24px 24px; color:#374151; font-size:14px; line-height:1.6">
+        <p>Booking của bạn đã được hủy thành công. Nếu có số tiền cần hoàn, chúng tôi sẽ chuyển vào phương thức thanh toán ban đầu trong vòng 5-7 ngày làm việc.</p>
+    </div>
+
+    <div style="background:#f9fafb; padding:16px 24px; text-align:center; color:#9ca3af; font-size:12px; border-top:1px solid #f3f4f6">
+        <p style="margin:0 0 4px">FlightEasy - Đặt vé thông minh, bay khắp nơi</p>
+        <p style="margin:0">Hỗ trợ: support@flighteasy.vn | Hotline: 1900-XXXX</p>
+    </div>
+
+</div>
+</body>
+</html>
